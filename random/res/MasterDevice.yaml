@@ -1,0 +1,65 @@
+name: "MasterDevice"
+manufacturer: "DHBKHN"
+model: "I3BK"
+description: "Tin hoc cong nghiep"
+labels:
+  - "Master"
+deviceResources: 
+      - name: MasterMethod                
+        properties:
+          value:
+            {type: "string", readWrite: "R"}
+          units:
+            { type: "string", readWrite: "R", defaultValue: "method"}
+      - name: MasterURL                
+        properties:
+          value:
+            {type: "string", readWrite: "R"}
+          units:
+            { type: "string", readWrite: "R", defaultValue: "url"}
+      - name: MasterBody               
+        properties:
+          value:
+            { type: "string", readWrite: "R"}
+          units:
+            { type: "string", readWrite: "R", defaultValue: "body"}
+      - name: MasterResult               
+        properties:
+          value:
+            { type: "string", readWrite: "W"}
+          units:
+            { type: "string", readWrite: "R", defaultValue: "result"}      
+deviceCommands:
+  - name: MasterRequest
+    get:
+      - { index: "1", operation: "get", object: "MasterMethod", parameter: "MasterMethod", property: "value" }
+      - { index: "2", operation: "get", object: "MasterURL", parameter: "MasterURL", property: "value" }
+      - { index: "3", operation: "get", object: "MasterBody", parameter: "MasterBody", property: "value" }
+  - name: MasterResult
+    put:
+      - { index: "1", operation: "set", object: "MasterResult", parameter: "MasterResult", property: "value" }      
+coreCommands:
+  - name: MasterRequest
+    get:
+        path: "/api/v1/device/{deviceId}/MasterRequest"
+        responses:
+          -
+            code: "200"
+            description: "successfully"
+            expectedValues: ["Method", "URL", "Body"]
+          -
+            code: "503"
+            description: "service unavailable"
+            expectedValues: []
+  - name: MasterResult
+    put:
+      path: "/api/v1/device/{deviceId}/MasterResult"
+      parameterNames: ["MasterResult"]
+      responses:
+      - code: "200"
+        description: "successfully"
+        expectedValues: []
+      - code: "503"
+        description: "service unavailable"
+        expectedValues: []
+
