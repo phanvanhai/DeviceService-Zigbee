@@ -459,10 +459,6 @@ int main (int argc, char *argv[])
   while (running)
   {
     sleep(5);
-    // printf("\nmain runing\n");
-     //printf("addNode");
-     //AddNode(&QueuePush,"RandomDeviceH#60#SensorOne#3#value#40#50#60#",&mutex_Push);
-
   }
 
   /* Stop the device service */
