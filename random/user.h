@@ -56,12 +56,12 @@ char *get_nv_config_string
 /*- tao String de gui yeu cau Discovey toi cac thiet bi.
   - NOTE: dung free() de free ket qua sau khi su dung.
  */
-char *user_discovery_write (void);
+char *user_json_discovery_write (void);
 
 /*- phan tich phan hoi Discovery tu dang JSON -> String.  
   - NOTE: dung user_discovery_free() sau khi su dung.
 */
-user_discovery *user_discovery_read(const char* json_input);
+user_discovery *user_json_discovery_read(const char* json_input);
 
 /*- giai phong vung nho khi doc phan hoi Discovery.
 */
@@ -70,13 +70,13 @@ void user_discovery_free(user_discovery *e);
 /*- tao String de gui toi thiet bi se duoc them vao.
   - NOTE: dung free() de free ket qua sau khi su dung.
 */
-char *user_add_device_write(user_add_device *e);
+char *user_json_add_device_write(user_add_device *e);
 
 /*- tao String de gui toi thiet bi khi them/ thay doi protocol cua thiet
     bi do.
   - NOTE: dung free() de free ket qua sau khi su dung.
 */
-char *user_protocol_write ( const char *devname, edgex_protocols *protocols);
+char *user_json_protocol_write ( const char *devname, edgex_protocols *protocols);
 
 /*- phan tich yeu cau Push Event cua thiet bi, luu vao struct: user_push_event.
   - NOTE: dung user_push_event_free() sau khi su dung.

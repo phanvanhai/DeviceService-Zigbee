@@ -1,5 +1,5 @@
 #include <stdio.h> 
-#include<string.h>
+#include <string.h>
 #include <stdlib.h>
 #include "user_typdef.h"
 
@@ -22,12 +22,16 @@ char * takeString(char **str)
 sensorEvent *takeEvent(char * str)
 {
 	sensorEvent *ev = (sensorEvent*) malloc(sizeof(sensorEvent));
-	char *newStr=str;
+	char *newStr = str;
+	char *str_size = NULL;
 
 	ev->name=takeString(&newStr);
 	ev->origin=atoi(takeString(&newStr));
 	ev->commandDevice=takeString(&newStr);
-	ev->size= atoi(takeString(&newStr));
+	str_size = takeString(&newStr);
+	ev->size= atoi(str_size);
+	if( str_size != NULL )
+		free(str_size);
 
 	ev->value= takeValue(str,ev->size,ev);
 	return ev;
@@ -81,7 +85,7 @@ void freeEvent(sensorEvent *ev)
 	if(ev!=NULL)
 	{
 		free(ev);
-	}
+	}	
 }
 
 

@@ -17,18 +17,27 @@
 #include <stdlib.h>
 #include <string.h>
 #include "user.h"
-#include "queue1.h"
+
+#include "user_queue.h"
 
 int serial_port;
-// pthread_mutex_t a_mutex; /*Khai báo biến mutex toàn cục*/
-// char *json_read_event = "{\"device\":\"RandomDeviceH\",\"origin\":60,\"readings\":{\"SensorOne\":{\"SensorOne\":\"45\"}}}\n";
-// char *json_read_rep = "{\"device\":\"RandomDevice1\",\"origin\":60,\"readings\":{\"SensorOne\":{\"SensorOne\":\"59\"}}}\n";
-// char *rep_discovery = "{\"device\":\"new device\",\"MAC\":\"47447\",\"devtype\":\"sensor\",\"profile\":\"ExampleSensor\"}\n";
+uint16_t address_zigbee = 4689;
+char *name_master = "RandomDevice1";
+
 #define ERR_CHECK(x) if (x.code) { fprintf (stderr, "Error: %d: %s\n", x.code, x.reason); edgex_device_service_free (service); free (impl); return x.code; }
 edgex_device_service *service;
 char *svcname;
 char *regURL;
 char *profile;
+
+pthread_t ThreadPush;
+pthread_t ThreadTX;
+pthread_t ThreadRX;
+Queue *QueuePush;
+Queue *QueueTX;
+Queue *QueueRX;
+Queue *QueueGetHandler;
+Queue *QueueDiscovery;
 
 void *RX(void *t)
 {
@@ -43,15 +52,16 @@ void *RX(void *t)
       switch (cmd)
       {
       case CMD_PUSH:
-        AddNode(&QueuePush, test+2, &mutex_Push);
+        // AddNode(&QueuePush, test+2, &mutex_Push);
+        enQueue(QueueRX, test+2);
         break;
 
       case CMD_GET:
-        AddNode(&QueueGetHandler, test+2, &mutex_Gethandler);              
+        enQueue(QueueGetHandler, test+2);
         break;
       
-      case CMD_DISCOVERY:
-        AddNode(&QueueDiscovery, test+2, &mutex_Discovery);
+      case CMD_DISCOVERY:        
+        enQueue(QueueDiscovery, test+2);
         break;
 
       default:
@@ -63,26 +73,28 @@ void *RX(void *t)
 
 void *TX(void *t)
 {
-  char test[255];
+  char *str_tx;
   while(1)
-  {
-    if(TakeNode(&QueueTX,test, &mutex_TX))
+  {    
+    if( NULL != (str_tx = deQueue(QueueTX)) )
     {
-      printf("\n---------------> Serial TX:\n\t%s\n",test);
-      user_serial_write(serial_port, test, strlen(test));
+      printf("\n---------------> Serial TX:\n\t%s\n",str_tx);    
+      user_serial_write(serial_port, str_tx, strlen(str_tx));      
+      free(str_tx);      
     }
   }
 }
 
 void *PushEvent(void *t)
-{
-  char test[255];
+{  
+  char *str_push;
   while(1)
   {            
-    if(TakeNode(&QueuePush,test, &mutex_Push))
+    if( NULL != (str_push = deQueue(QueuePush)) )
     {                      
       printf("\n---------------> Push\n");
-      user_push_event *push_event = user_push_event_read(service, test);    
+      user_push_event *push_event = user_push_event_read(service, str_push);    
+      free(str_push);
       if( push_event != NULL)
       {
         edgex_device_post_readings (service, push_event->device_name ,push_event->resource_name, push_event->values);        
@@ -91,22 +103,15 @@ void *PushEvent(void *t)
     }            
   }  
 }
-int address_zigbee = 4689;
+
 
 static bool user_add_new_device(char *input_json)
 {
-  // const char *profile_name;  
-  // edgex_error err;
-  // char addr_str[4];
-  // sprintf(addr_str, "%u", address_zigbee);
-
-  // user_discovery * discovery = user_discovery_read(input_json);
-  // profile_name = discovery->profile;
   const char *profile_name;  
   edgex_error err;
   char addr_str[4];
   sprintf(addr_str, "%u", address_zigbee); // so nguyen ko dau
-  //user_discovery * discovery = user_discovery_read(input_json);
+  
   repDiscovery *rep = takeDiscovery(input_json);
   uint32_t lengRepDevice = 1+4+strlen(rep->mac)+strlen(rep->profile)+strlen(rep->model) +5;
   // cmd +add_str +MAC +profile +model +5 (#)
@@ -115,7 +120,7 @@ static bool user_add_new_device(char *input_json)
   
 
   profile_name = rep->profile;
-  /////
+  
   edgex_protocols *newprot = malloc (sizeof (edgex_protocols));
   newprot->name = strdup("zigbee");
   edgex_nvpairs *nv = malloc(sizeof(edgex_nvpairs));
@@ -128,16 +133,16 @@ static bool user_add_new_device(char *input_json)
   edgex_strings *labels = (edgex_strings *) malloc (sizeof (edgex_strings));
   labels->str = strdup("new device");
   labels->next = NULL;
-/////
+
   char * id_dev =  edgex_device_add_device (service, addr_str, NULL, labels, profile_name, newprot, NULL, &err );
   
   edgex_strings_free(labels);
-  //user_discovery_free(discovery);
+  
   if( id_dev != NULL )
   {
     printf("-------------------------------> \n\tda them 1 thiet bi ID =%s\n", id_dev);
-    printf("-------------%s\n",repDevice);
-    AddNode(&QueueTX,repDevice,&mutex_TX);
+    printf("-------------%s\n",repDevice);    
+    enQueue(QueueTX, repDevice);
     free(id_dev);
     freeDiscovery(rep);
     free(repDevice);
@@ -154,28 +159,17 @@ static bool user_add_new_device(char *input_json)
 }
 
 static void random_discover (void *impl) {
-  printf("--------------------------------------> discovery\n");
-  // char *dis = user_discovery_write();
-  // if( dis == NULL )
-  // {
-  //   return;
-  // }
-  // //char * str_send = malloc( strlen(dis) + 2);  
-  // sprintf(str_send, "",CMD_DISCOVERY, dis);  
-  // //free(dis); 
-
-
-  // takeString(&str_send);
-  // sensorEvent *ev =takeEvent(str_send);
-  char test[255];
-  int count = 10; // 10s
+  printf("--------------------------------------> discovery\n");  
+  int count = 5; // 10s
+  char *str_discovery;
   while(count-- > 0)
-  {
-    AddNode(&QueueTX, "d#newdevice#", &mutex_TX);
-    sleep(1);    
-    if(TakeNode(&QueueDiscovery,test, &mutex_Discovery))
+  {    
+    enQueue(QueueTX, "d#newdevice#");
+    sleep(2);        
+    if( NULL != (str_discovery = deQueue(QueueDiscovery)) )
     {
-      bool result = user_add_new_device(test);
+      bool result = user_add_new_device(str_discovery);
+      free(str_discovery);
       if( result )
         printf("\t\tokkkkkkkkkkkk\n");
       else
@@ -183,22 +177,7 @@ static void random_discover (void *impl) {
         printf("\t\tfalseeeeeeeeeeee\n");
       }      
     }        
-  } 
-  //free(str_send);
-}
-
-static volatile sig_atomic_t running = true;
-static void inthandler (int i)
-{
-  char  c;
-  
-  printf("OUCH, did you hit Ctrl-C?\n"
-        "Do you really want to quit? [y/n] ");
-  scanf(" %c", &c);
-  if (c == 'y' || c == 'Y')
-      running = false;
-  else
-      random_discover(NULL);  
+  }   
 }
 
 typedef struct random_driver
@@ -220,7 +199,7 @@ static bool random_init
   driver->state_flag=false;
   pthread_mutex_init (&driver->mutex, NULL);
   iot_log_debug(driver->lc,"Init");
-
+/*
   // edgex_error *err;
   // edgex_nvpairs *c = edgex_device_getConfig (service);  
   // if( c != NULL)
@@ -248,7 +227,7 @@ static bool random_init
   //   printf("\n-------------------> Driver/CurrentAddrZigbee = %d<------------------------\n", current_addr_zigbee);
   //   edgex_nvpairs_free (c);
   // }  
-    
+ */   
   return true;
 }
 
@@ -263,36 +242,38 @@ static bool random_get_handler
 )
 {
   bool result;
-  // random_driver *driver = (random_driver *) impl;
+  
   char *str_request = user_gethandler_write( devname, nreadings, requests);  // struct ->string-json
   if( str_request == NULL )
   {
     return false;
   }
   printf("\n-----------------> GET send command:\n\t%s\n", str_request);         
-  AddNode(&QueueTX,str_request, &mutex_TX);
-  free(str_request);
+  enQueue(QueueTX,str_request);  
+  free(str_request);  
 
-  // // printf("---------------------GET 2--------------------\n");
-
-  result = false;
-  char test[255]="\0";//"RandomDeviceH#60#SensorOne#3#value#100#50#60#";
-  int count = 30; // 3s
-  //result = user_repget_event_read(readings,devname, requests, nreadings, test);
+  result = false;  
+  int count = 5000;     // 3s
+  
+  char *str_get;
   while(count-- > 0)
   {
-    usleep(100000);
-    if(TakeNode(&QueueGetHandler,test, &mutex_Gethandler))
-    {      
-      result = user_repget_event_read(readings,devname, requests, nreadings, test);
-     if( result )
-      {
-        printf("\nphan hoi thanh cong\n");
+    usleep(1000);
+    lock_queue(QueueGetHandler);
+    str_get = readQNode(QueueGetHandler);
+    if( NULL != str_get )
+    {            
+      result = user_repget_event_read(readings,devname, requests, nreadings, str_get);            
+      free(str_get);            
+      if( result )
+      { 
+        clearQNode(QueueGetHandler);
+        unlock_queue(QueueGetHandler);
+        printf("\nda nhan phan hoi cua :%s\n", devname);
         return true;
       }     
-    }  
-  // printf("\nwaiting QueueGethandler\n");
-  //return result;    
+    }
+    unlock_queue(QueueGetHandler);      
   }
   
 //   // result = false  
@@ -320,7 +301,7 @@ static bool random_put_handler
   printf("\n---------------> PUT send command:\n\t%s\n", str_request);
   
 
-  AddNode(&QueueTX, str_request, &mutex_TX);
+  enQueue(QueueTX, str_request);
   printf("sau put sen\n ");
   free(str_request);
   return result;
@@ -382,6 +363,21 @@ static bool testArg (int argc, char *argv[], int *pos, const char *pshort, const
   return false;
 }
 
+static volatile sig_atomic_t running = true;
+static void inthandler (int i)
+{
+  char  c;
+  
+  printf("OUCH, did you hit Ctrl-C?\n"
+        "Do you really want to quit? [y/n] ");
+  scanf(" %c", &c);
+  if (c == 'y' || c == 'Y')
+      running = false;
+  else
+      random_discover(NULL);  
+}
+
+
 int main (int argc, char *argv[])
 {
   profile = "";
@@ -398,10 +394,14 @@ int main (int argc, char *argv[])
     printf("\n\n-------------------- loi --------------------------\n\n");
       exit(0);
   }
-  QueueInit();
- iot_thread_create(&ThreadPush,PushEvent, NULL, NULL);
- iot_thread_create(&ThreadRX,RX, NULL, NULL);
- iot_thread_create(&ThreadTX,TX, NULL, NULL);
+QueuePush       = createQueue(10);
+QueueTX         = createQueue(10);
+QueueRX         = createQueue(10);
+QueueGetHandler = createQueue(10);
+QueueDiscovery  = createQueue(10);
+iot_thread_create(&ThreadPush,PushEvent, NULL, NULL);
+iot_thread_create(&ThreadRX,RX, NULL, NULL);
+iot_thread_create(&ThreadTX,TX, NULL, NULL);
 
 
   int n = 1;
@@ -459,49 +459,45 @@ int main (int argc, char *argv[])
 
   signal (SIGINT, inthandler);
   running = true;
-
-
-
-
-  // edgex_protocols *newprot = malloc (sizeof (edgex_protocols));
-  // newprot->name = strdup("zibee");
-  // edgex_nvpairs *nv = malloc(sizeof(edgex_nvpairs));
-  // nv->name = strdup("addr");
-  // nv->value = strdup("1234");
-  // nv->next = NULL;
-  // newprot->properties = nv;
-  // newprot->next = NULL;
-
-  // char * prot = user_protocol_write ( "test write protocol", newprot);
-  // printf("\n-----------------> add prototcol: %s\n\n", prot);
-  // edgex_protocols_free(newprot);
-  // free(prot);  
-   edgex_device *  test = edgex_device_get_device_byname(service,"4688");
-    //  char *newAddress = strdup(test->labels->str);
-   edgex_error *err;
-  while (running)
+/*  
+  edgex_device *  device_master = edgex_device_get_device_byname(service, name_master);  
+  if( device_master != NULL)
   {
-    if(test!=NULL)
+    if (device_master->description != NULL)
     {
-      printf("test != NULL\n\n");
-      //if(test->description==NULL)
-      //{
-        printf("\n\nupdate newDescription\n");
-        printf("\n---------------id:%s---name: %s-----profileName:%s\n",test->id,test->name,test->profile->name);
-        edgex_device_update_device(service,test->id,test->name,
-                                    "newDescription",test->labels,
-                                     test->profile->name,err);
-      if(err!=0) printf("\n---------update  :%s\n",err->reason);
-
-      //}
-      
+      if( strlen (device_master->description))
+      {
+        printf("old description = %s\n", device_master->description);
+        char *description_master = strdup(device_master->description);  
+        sscanf(description_master, "%hd", &address_zigbee);
+        printf("old addr zigbee = %hd\n", address_zigbee);
+        free(description_master);
+      }
+      else
+      {
+        address_zigbee = 0;
+      }      
     }
-  
-    sleep(5);
-    printf("\nmain runing\n");
-     //printf("addNode");
-     //AddNode(&QueuePush,"RandomDeviceH#60#SensorOne#3#value#40#50#60#",&mutex_Push);
+    else
+    {
+      address_zigbee = 0;
+    }    
+    edgex_device_free_device(device_master);
+  }
 
+  address_zigbee++;
+  printf("new addr zigbee = %hd\n", address_zigbee);
+  printf("\n\nupdate newDescription\n");
+  char str_addr[32];
+  sprintf(str_addr, "%d", address_zigbee);
+  printf("new addr zigbee = %s", str_addr);
+  edgex_device_update_device(service,NULL, name_master,str_addr,NULL,NULL, &e);
+  if(e.code != 0) 
+    printf("\n---------update  :%s\n",e.reason); 
+*/
+  while (running)
+  {  
+    sleep(1);
   }
 
   /* Stop the device service */

@@ -1,6 +1,6 @@
 #include "user.h"
 #include "structString.h"
-//#include"queue1.h"
+
 
 #include <stdio.h>
 #include <string.h>
@@ -12,8 +12,6 @@
 
 #define SAFE_STR(s) (s ? s : "NULL")
 #define SAFE_STRDUP(s) (s ? strdup(s) : NULL)
-
-// static const char *rwstrings[2][2] = { { "", "W" }, { "R", "RW" } };
 
 static const char *adstatetypes[] = { "LOCKED", "UNLOCKED" };
 
@@ -215,7 +213,7 @@ char *get_nv_config_string
   return NULL;
 }
 /*------------------------------------------------------------------------------------------ */
-char *user_discovery_write (void)
+char *user_json_discovery_write (void)
 {
     char *result;
     JSON_Value *val = json_value_init_object ();
@@ -231,7 +229,7 @@ char *user_discovery_write (void)
     return result;
 }
 
-user_discovery *user_discovery_read(const char* json_input)
+user_discovery *user_json_discovery_read(const char* json_input)
 {
     JSON_Value *val = json_parse_string (json_input);
     if (val == NULL)
@@ -260,7 +258,7 @@ void user_discovery_free(user_discovery *e)
     free(e);
 }
 
-char *user_add_device_write(user_add_device *e)
+char *user_json_add_device_write(user_add_device *e)
 {
     char *result;
     JSON_Value *val = json_value_init_object();
@@ -277,7 +275,7 @@ char *user_add_device_write(user_add_device *e)
     return result;
 }
 
-char *user_protocol_write ( const char *devname, edgex_protocols *protocols)
+char *user_json_protocol_write ( const char *devname, edgex_protocols *protocols)
 {
     char *result;    
     JSON_Value *val = json_value_init_object ();
@@ -347,8 +345,7 @@ user_push_event *user_push_event_read(edgex_device_service *svc,char *json_input
         freeEvent(ev);
         return NULL;
       }
-    }
-  // printf("vongcuoi\n");
+    }  
   edgex_device_free_device (dev);
   freeEvent(ev);       
   return result_event;
@@ -368,88 +365,54 @@ char *user_gethandler_write(const char *devname,
 {
   char fullResname[100]="\0";
   for(uint32_t i = 0; i < nreadings; i++)
-  {
-    //requests[i].resname, "");
+  {    
     strcat(fullResname,requests[i].resname);
     strcat(fullResname,"#");
   }
   int length = strlen(devname)+ strlen("100")+5+strlen(fullResname)+6; //6= 5# +1CMD_GET
   char * result = malloc(length);
-  sprintf(result,"%c#%s#%s#%d#%s",CMD_GET,devname,"100",nreadings,fullResname); 
-   // sprintf(result,"%s#%s#%d#%s",devname,"100",nreadings,fullResname);
+  sprintf(result,"%c#%s#%s#%d#%s",CMD_GET,devname,"100",nreadings,fullResname);    
   return result;
 }                            
 //result = user_repget_event_read(readings,devname, requests, nreadings, test);
 bool user_repget_event_read( edgex_device_commandresult *readings, const char *devname, const edgex_device_commandrequest *requests, 
                       uint32_t nreadings, char *json_input)
 {
-  // JSON_Value *jval = json_parse_string (json_input);
-
-  // if (jval == NULL)
-  // {
-  //   fprintf(stderr, "Waring: Payload did not parse as JSON\n");
-  //   return false;
-  // }  
-  // JSON_Object *jobj = json_value_get_object (jval);
-  // const char* device_name = json_object_get_string (jobj, "device");
   sensorEvent * ev=takeEvent(json_input);
 
   if( strcmp(ev->name, devname) )
-  {
-    fprintf(stderr, "Khong phai phan hoi cua thiet bi mong muon\n");
-    //AddNode(&QueueGetHandler,json_input,&mutex_Gethandler);
-    // printf("%s\n",ev->name);
-    // printf("%s\n",ev->commandDevice);
-    //printf("%s\n",ev->value[0]);
-    //printf("%s\n",ev->name);
-    if(ev!=NULL)
+  {    
+    if(ev != NULL)
     {
       freeEvent(ev);
-    }
+    }    
     return false;
   }
-  // printf("\n------------------------>ben trong repget\n");
 
   uint64_t origin = ev->origin;
 
-  // JSON_Object *obj_data = json_object_get_object(jobj,"readings");
-  // size_t count = json_object_get_count (obj_data);
-  // if( count > 0)
-  // {                
-  //   JSON_Value *pval = json_object_get_value_at (obj_data, 0);
-  //   JSON_Object *obj_readings = json_value_get_object(pval);
-  
-    for (int i = 0; i < nreadings; i++)
+  for (int i = 0; i < nreadings; i++)
+  {    
+    const char *value = NULL;
+    const char *resname = requests[i].resname;   /// 1 temp  2 humi   
+    value = ev->value[i];
+
+    if (value == NULL)
     {
-      // printf("\nben trong vong lap\n");
-      const char *value = NULL;
-      const char *resname = requests[i].resname;   /// 1 temp  2 humi   
-      // printf("\n vong lap a1\n");
-      //value = json_object_get_string (obj_readings, resname);}
-      value = ev->value[i];
-    
-      // printf("\n vong lap a2\n");
-      if (value == NULL)
-      {
-        fprintf(stderr, "Cannot get Value of %s in JSON Readings\n", resname);        
-        // json_value_free (jval);   
-        freeEvent(ev);                  
-        return false;
-      }
-      readings[i].type = requests[i].type;   // 
-      readings[i].origin = origin;
-      // printf("\n vong lap 1\n");
-      if (!populateValue (&readings[i], value))
-      {        
-        fprintf(stderr, "Cannot get Value of %s\n", resname);
-        //json_value_free (jval);    
-        freeEvent(ev);
-        return false;
-      }
+      fprintf(stderr, "Cannot get Value of %s in JSON Readings\n", resname);              
+      freeEvent(ev);                  
+      return false;
     }
-      //json_value_free (jval);
+    readings[i].type = requests[i].type;   // 
+    readings[i].origin = origin;    
+    if (!populateValue (&readings[i], value))
+    {        
+      fprintf(stderr, "Cannot get Value of %s\n", resname);      
       freeEvent(ev);
-      // printf("\n vong lap 2\n");
+      return false;
+    }
+  }      
+      freeEvent(ev);      
       return true;  
   }                     
 
@@ -459,30 +422,19 @@ char *user_puthandler_write(const char *devname,
                             const edgex_device_commandresult *values)
 {
   //CMD#Name#Origin#size#value#12#12#12
-  // JSON_Value *json_result = json_value_init_object ();
-  // JSON_Object *obj = json_value_get_object (json_result);
-  // json_object_set_string (obj, "device", devname);
-  // json_object_set_uint (obj, "origin", 0);
-   char fullValue[100]="\0";
+  char fullValue[100]="\0";
   for(uint32_t i = 0; i < nvalues; i++)
   {
-    char *str_values = edgex_value_tostring (&values[i], true);
-    // json_object_set_string(obj_put, requests[i].resname, str_values);
+    char *str_values = edgex_value_tostring (&values[i], true);  
     strcat(fullValue,requests[i].resname);
     strcat(fullValue,":");
     strcat(fullValue,str_values);
     strcat(fullValue,"#");
     free(str_values);
   }
-  uint32_t length = strlen(devname)+ strlen("100")+5+strlen(fullValue)+6; //6= 5# +1CMD_GET
+  uint32_t length = strlen(devname)+ strlen("0")+5+strlen(fullValue)+6; //6= 5# +1CMD_GET
   char * result = malloc(length);
-  sprintf(result,"%c#%s#%s#%d#%s",CMD_PUT,devname,"100",nvalues,fullValue);
-  // json_object_set_value (obj_readings, "put",value_put );
-
-  // json_object_set_value (obj, "readings", json_readings);
-
-  // result = json_serialize_to_string(json_result);
-  // json_value_free(json_result);
+  sprintf(result,"%c#%s#%s#%d#%s",CMD_PUT,devname,"0",nvalues,fullValue);
   return result;
 }
 
