@@ -11,6 +11,13 @@ extern "C"
 #include <termios.h>	
 #include <unistd.h>		
 
+extern repDiscovery * takeDiscovery(char *str);
+extern void freeDiscovery(repDiscovery *d);
+extern char * takeString(char **str);
+extern sensorEvent *takeEvent(char * str);
+extern string *takeValue(char *str,int size,sensorEvent *ev);
+extern void freeEvent(sensorEvent *ev);
+extern char * takeString(char **str);
 extern bool edgex_b64_decode (const char *in, void *outv, size_t *outLen);
 extern size_t edgex_b64_maxdecodesize (const char *in);
 extern edgex_strings *edgex_strings_dup (const edgex_strings *strs);

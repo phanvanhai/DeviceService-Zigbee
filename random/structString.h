@@ -1,17 +1,10 @@
 #include <stdio.h> 
 #include<string.h>
 #include <stdlib.h>
-typedef char* string;
+#include "user_typdef.h"
 
-typedef struct sensorEvent
-{
-	char * name;
-	uint64_t  origin;
-	char *commandDevice;
-	uint32_t size;
-	string *value;
-} sensorEvent;
-
+repDiscovery * takeDiscovery(char *str);
+void freeDiscovery(repDiscovery *d);
 char * takeString(char **str);
 sensorEvent *takeEvent(char * str);
 string *takeValue(char *str,int size,sensorEvent *ev);
@@ -37,6 +30,7 @@ sensorEvent *takeEvent(char * str)
 	ev->size= atoi(takeString(&newStr));
 
 	ev->value= takeValue(str,ev->size,ev);
+	return ev;
 }
 
 string *takeValue(char *str,int size,sensorEvent *ev)
@@ -88,4 +82,30 @@ void freeEvent(sensorEvent *ev)
 	{
 		free(ev);
 	}
+}
+
+
+// discovery;
+repDiscovery * takeDiscovery(char *str)
+{
+	repDiscovery *dis=(repDiscovery*)malloc(sizeof(repDiscovery));
+	char *newStr=str;
+	dis->devname =takeString(&newStr);
+	dis->mac =takeString(&newStr);
+	dis->profile=takeString(&newStr);
+	dis->model =takeString(&newStr);
+	return dis;
+}
+void freeDiscovery(repDiscovery *d)
+{
+	if(d->devname!=NULL)
+		free(d->devname);
+	if(d->mac!=NULL)
+		free(d->mac);
+	if(d->profile!=NULL)
+		free(d->profile);
+	if(d->model!=NULL)
+		free(d->model);
+	if(d!=NULL)
+		free(d);
 }

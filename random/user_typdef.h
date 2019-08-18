@@ -6,6 +6,25 @@
 #include "edgex/device-mgmt.h"
 #include "edgex/devsdk.h"
 
+typedef char* string;
+
+typedef struct repDiscovery
+{
+	char *devname;
+	char *mac;
+	char *profile;
+	char *model;
+} repDiscovery;
+
+typedef struct sensorEvent
+{
+	char * name;
+	uint64_t  origin;
+	char *commandDevice;
+	uint32_t size;
+	string *value;
+} sensorEvent;
+
 typedef enum {
   CMD_PUSH = 'a',
   CMD_GET = 'b', 
