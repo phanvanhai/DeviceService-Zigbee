@@ -2,6 +2,7 @@ import paho.mqtt.client as mqtt
 import os, time
 import random
 from threading import Thread
+import sys
 
 topic_sub = "edgex2device"
 topic_pub = "device2edgex"
@@ -34,7 +35,7 @@ INDEX_VALUE_GET     = 4
 INDEX_SIZE_PUT      = 3
 INDEX_VALUE_PUT     = 4
 
-my_name             = "RandomDevice1"
+my_name             = DEFAULT_NAME
 addr_zigbee         = None
 Switch_value        = "false"
 
@@ -94,6 +95,7 @@ def get_arr_value(arr):
 
 def device_repdiscovery():
     str_ = template_discovery.format(my_name, MAC, PROFILE, MODEL)
+    client.publish(topic_pub, str_) 
     print("\t" + str_)
 
 def device_repadd_device(arr_input):
@@ -175,41 +177,45 @@ def on_message(client, userdata, message):
     #print("Device nhan duoc yeu cau:\n\t",message.payload)
     # receive_proccess_edgex(message.payload.decode("utf-8"))
     device_to_edgex_buf.append(message.payload.decode('utf-8'))        
- 
-Connected = False   
 
-client = mqtt.Client()                     
-client.on_connect= on_connect                      
-client.on_message= on_message                      
- 
-client.connect("localhost", 1883)                  
-client.loop_start()                                
- 
-while Connected != True:                           
-    time.sleep(0.1)
- 
-client.subscribe(topic_sub)
+if __name__ == "__main__":
+    if (len(sys.argv) >= 2):
+        my_name = sys.argv[1]
+    print(my_name)
+    Connected = False   
 
-thread_mqtt = ClassThread(th_process)
-thread_mqtt.setDaemon(True)
-thread_mqtt.start()
-
-try:
-    while True:
-        time.sleep(5)        
-        str_ = device_push_edgex( DEVICE_COMMAND_1 ,LIST_RES_PUSH_1)
-        str_ = device_push_edgex( DEVICE_COMMAND_1 ,LIST_RES_PUSH_1)
-        client.publish(topic_pub, str_) 
-        #print(repget)         
-        # time.sleep(5)
-        # str_ = device_push_edgex( DEVICE_COMMAND_2 ,LIST_RES_PUSH_2)
-        # client.publish(topic_pub, str_)   
-        # time.sleep(5)
-        # str_ = device_push_edgex( DEVICE_COMMAND_3 ,LIST_RES_PUSH_3)
-        # client.publish(topic_pub, str_) 
+    client = mqtt.Client()                     
+    client.on_connect= on_connect                      
+    client.on_message= on_message                      
+    
+    client.connect("localhost", 1883)                  
+    client.loop_start()                                
+    
+    while Connected != True:                           
+        time.sleep(0.1)
  
-except KeyboardInterrupt:
-    print("exiting")
-    flag_main_continous = False
-    client.disconnect()
-    client.loop_stop()
+    client.subscribe(topic_sub)
+
+    thread_mqtt = ClassThread(th_process)
+    thread_mqtt.setDaemon(True)
+    thread_mqtt.start()
+
+    try:
+        while True:
+            time.sleep(5)        
+            str_ = device_push_edgex( DEVICE_COMMAND_1 ,LIST_RES_PUSH_1)
+            str_ = device_push_edgex( DEVICE_COMMAND_1 ,LIST_RES_PUSH_1)
+            client.publish(topic_pub, str_) 
+            #print(repget)         
+            # time.sleep(5)
+            # str_ = device_push_edgex( DEVICE_COMMAND_2 ,LIST_RES_PUSH_2)
+            # client.publish(topic_pub, str_)   
+            # time.sleep(5)
+            # str_ = device_push_edgex( DEVICE_COMMAND_3 ,LIST_RES_PUSH_3)
+            # client.publish(topic_pub, str_) 
+    
+    except KeyboardInterrupt:
+        print("exiting")
+        flag_main_continous = False
+        client.disconnect()
+        client.loop_stop()
