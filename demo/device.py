@@ -4,6 +4,12 @@ import random
 from threading import Thread
 import sys
 
+USERNAME = "ttdqymlc"
+PASSWORD = "x8cN-GqZBJPK"
+SERVER = 	"m16.cloudmqtt.com"
+PORT = 	14023
+QOS = 0
+
 topic_sub = "edgex2device"
 topic_pub = "device2edgex"
 
@@ -42,10 +48,7 @@ Switch_value        = "false"
 flag_main_continous = True
 device_to_edgex_buf = []
 
-test_get            = "b#RandomDeviceH#60#3#SensorOne#SensorTwo#Switch#\n"           
-# test_put            = "3#RandomDeviceH#60#1#Switch:true#\n"                              #value#30#80
-# test_discovery      = "4#newdevice#\n"
-# test_add            = "5#newdevice#29081997#RandomDeviceH#12345#\n"
+# test_get            = "b#RandomDeviceH#60#3#SensorOne#SensorTwo#Switch#\n"           
 
 # ------- Define Classes -------
 class ClassThread (Thread):
@@ -186,9 +189,11 @@ if __name__ == "__main__":
 
     client = mqtt.Client()                     
     client.on_connect= on_connect                      
-    client.on_message= on_message                      
-    
-    client.connect("localhost", 1883)                  
+    client.on_message= on_message     
+
+    client.username_pw_set(username=USERNAME, password=PASSWORD)                 
+    client.connect(SERVER, PORT, keepalive=30)
+    # client.connect("localhost", 1883)                  
     client.loop_start()                                
     
     while Connected != True:                           

@@ -53,7 +53,7 @@ void *RX(void *t)
       {
       case CMD_PUSH:
         // AddNode(&QueuePush, test+2, &mutex_Push);
-        enQueue(QueueRX, test+2);
+        enQueue(QueuePush, test+2);
         break;
 
       case CMD_GET:

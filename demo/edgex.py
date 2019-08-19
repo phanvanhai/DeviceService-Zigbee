@@ -8,6 +8,12 @@ client = None
 device_to_edgex_buf = []
 edgex_to_device_buf = []
 flag_main_continous = True
+
+
+USERNAME = "ttdqymlc"
+PASSWORD = "x8cN-GqZBJPK"
+SERVER = 	"m16.cloudmqtt.com"
+PORT = 	14023
 QOS = 0
 topic_pub = "edgex2device"
 topic_sub = "device2edgex"
@@ -55,7 +61,9 @@ def th_MQTT_pub():
     x = True
     while x:
         try:
-            client.connect("localhost", 1883) 
+            client.username_pw_set(username=USERNAME, password=PASSWORD)                 
+            client.connect(SERVER, PORT, keepalive=30)
+            # client.connect("localhost", 1883) 
             x = False
             edgex_to_device_buf.clear()
         except BaseException:
