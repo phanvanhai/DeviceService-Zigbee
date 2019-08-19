@@ -54,21 +54,12 @@ def initMQTT():
     client = mqtt.Client()                     
     client.on_connect= on_connect                      
     client.on_message= on_message  
-    client.on_disconnect = on_disconnect                                   
+    client.on_disconnect = on_disconnect   
+
+    client.username_pw_set(username=USERNAME, password=PASSWORD)                                    
     return client
 
 def th_MQTT_pub():
-    x = True
-    while x:
-        try:
-            client.username_pw_set(username=USERNAME, password=PASSWORD)                 
-            client.connect(SERVER, PORT, keepalive=30)
-            # client.connect("localhost", 1883) 
-            x = False
-            edgex_to_device_buf.clear()
-        except BaseException:
-            time.sleep(5)
-    client.loop_start()
     while flag_main_continous:        
         try:
             if len(edgex_to_device_buf) > 0:
@@ -101,6 +92,16 @@ ser = serial.Serial(
     timeout=None)
 
 client = initMQTT()
+x = True
+while x:
+    try:                     
+        client.connect(SERVER, PORT, keepalive=30)
+        # client.connect("localhost", 1883) 
+        x = False
+        edgex_to_device_buf.clear()
+    except BaseException:
+        time.sleep(5)
+client.loop_start()
 
 thread_mqtt = ClassThread(th_MQTT_pub)
 thread_mqtt.setDaemon(True)

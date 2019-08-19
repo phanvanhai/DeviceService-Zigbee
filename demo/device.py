@@ -63,20 +63,23 @@ class ClassThread (Thread):
 # -------------------------------- Define Functions ----------------------------------
 
 def set_value(str_):
+    global Switch_value
     index = str_.find(':')
     resname = str_[:index]
     value   = str_[index+1:]
-    if str_ == "Switch":
+    if resname == "Switch":
         Switch_value = value
+        print("\t" + resname + "=" + value)
     else:
         pass
-    print("\t" + resname + "=" + value)
+    
 
 def set_arr_values(arr):
     for x in arr:
         set_value(x)
 
 def get_value(str_res):
+    global Switch_value
     if str_res == "SensorOne":
         return str(random.randint(30, 40))
     elif str_res == "SensorTwo":

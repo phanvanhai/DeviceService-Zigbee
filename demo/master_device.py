@@ -114,7 +114,7 @@ def menu():
 
     if choice == "1":
         url = URL_POST_DISCOVERY
-        body = ""
+        body = "body"
         request = template_push.format(my_name, "POST", url, body)
         client.publish(topic_pub, request)        
         os.system("clear")
@@ -139,7 +139,7 @@ def menu():
     elif choice == "3":
         label = input("label >>> ")
         url   = URL_GET_DEVICE_BY_LABEL.format(label)
-        body  = ""
+        body  = "body"
         request = template_push.format(my_name, "GET", url, body)
         client.publish(topic_pub, request)        
         os.system("clear")
@@ -152,7 +152,7 @@ def menu():
         print          ("-------------> Send PUT command <-------------")
         device  = input("name Device        >>> ")
         command = input("command            >>> ")
-        url = URL_POST_DISCOVERY.format(device, command)
+        url = URL_PUT_COMMAND.format(device, command)
         body    = input("body {\"a\":\"b\"} >>> ")
         request = template_push.format(my_name, "PUT", url, body)
         client.publish(topic_pub, request)        
